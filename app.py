@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+import json
 import pymongo
 from time import time, strftime
 import datetime
@@ -92,6 +93,29 @@ def resetSpot(spot):
     reset = {"$set" : {"occupied" : False, "occupiedBy" : None, "occupiedSince": None}}
     col.update_one(query, reset)
     return "Reset spot {}".format(spot)
+
+@app.route('/listSpots/')
+def listSpots():
+    spots = mydb["spot"].find({},{ "_id": 0, "occupiedSince": 0, "occupiedBy":0})
+    parkings = mydb["parking"].find({},{ "_id": 0})
+    jsonSpots = []
+
+    for x in parkings:
+        #print(x)
+        print("Listing spots for this parking::")
+        x["spotArray"] = []
+        #print(x)
+        for y in spots:
+            if y["parking"] == x["number"]:
+               x["spotArray"].append(y)
+        jsonSpots.append(x)
+
+    return json.dumps(jsonSpots, ensure_ascii = False)
+
+    return "List of spots"
+
+
+
 
 if __name__=='__main__':
     app.run(host='0.0.0.0', port=5000)
