@@ -9,6 +9,38 @@ app = Flask(__name__)
 myclient = pymongo.MongoClient("mongodb+srv://admin:masteriot@cluster0-yh0hh.gcp.mongodb.net/test?retryWrites=true")
 mydb = myclient["smartbikerack"]
 
+
+def verifyUser(userID):
+    query = {"number" : userID}
+    user = mydb["users"].find_one(query)
+    print(user)
+    if user["status"] == "ok" and user["active"] == True:
+        return user, True, user["current"]
+    else:
+        return {"user" :  "False"}, False
+
+def updateUser(current, userID):
+    query = {"number" : userID}
+    change = {"$set" : {"current": current}}
+    mydb["users"].update_one(query, change)
+    return True
+
+def updateParking(used, parking):
+    query = {"number" : parking}
+    parking = mydb["parking"].find_one(query)
+    spotsUsed = parking["spotsOccupied"]
+    if used:
+        spotsUsed+=1
+    else:
+        spotsUsed-=1
+    print(spotsUsed)
+    if (0 <= spotsUsed) and (spotsUsed <= parking["spots"]):
+        change = {"$set" : {"spotsOccupied" :  spotsUsed}}
+        mydb["parking"].update_one(query, change)
+        return True
+    else:
+        return False
+
 @app.route('/')
 def hello():
     return "Hello World!"
@@ -23,67 +55,59 @@ def testMongo():
 
     return "Test"
 
-@app.route('/useSpot/<string:parking>')
-def useSpot(parking):
-    spot = request.args.get('spot')
-    user = request.args.get('user')
-    query = {"number": int(spot)}
-    col = mydb["spot"]
-    park = col.find_one(query)
-    print("User {} trying to use spot {} on parking {}".format(user, spot, parking))
 
-    if park["occupied"] == False:
+@app.route('/reserveSpot/<int:user>/<int:parking>')
+def reserveSpot(user, parking):
+   now = datetime.datetime.now()
+   dateName = now.strftime("%Y-%m-%d-%H-%M-%S")
+   spots = mydb["spot"]
+   userNumber, userStatus, userCurrent = verifyUser(user)
+   if userStatus == False:
+        print("User not valid")
+        return jsonify(response = "This user is not valid. Contact us for more info")
+
+   if userCurrent == True:
+        print("User already using a spot")
+        return jsonify(response= "You're already using a spot")
+
+
+
+   for x in spots.find({"parking" : parking}):
+       if x["occupied"] == False:
+           change = {"$set" : {"occupied": True, "occupiedBy": user, "occupiedSince" : dateName}}
+           spots.update_one({"number" : x["number"]}, change)
+           updateUser(True, user)
+           updateParking(True, parking)
+           return jsonify(spotReserved =  x["number"], response= "Reserved spot {}".format(x["number"]))
+
+   return jsonify(response= "No spots available")
+
+
+@app.route('/releaseSpot/<int:user>')
+def releaseSpot(user):
+    query = {"occupiedBy" : user}
+    userNumber, userStatus, userCurrent = verifyUser(user)
+    spot = mydb["spot"].find_one(query)
+    print(spot)
+    if spot == None:
+        return jsonify(response = "User not using any spot")
+    if spot["occupied"] == True and spot["occupiedBy"] == userNumber["number"]:
         now = datetime.datetime.now()
         dateName = now.strftime("%Y-%m-%d-%H-%M-%S")
-        occupied = {"$set" : {"occupied" : True, "occupiedBy": int(user), "occupiedSince": dateName}}
-        col.update_one(query,occupied)
-    else:
-        return jsonify(
-            status = "occupied"
-            ), 403
-
-    return jsonify(
-        status = "ok")
-
-@app.route('/releaseSpot/<string:parking>')
-def releaseSpot(parking):
-    spot = request.args.get('spot')
-    user = request.args.get('user')
-    query = {"number": int(spot)}
-    col = mydb["spot"]
-    park = col.find_one(query)
-    print("User {} trying to release spot {} on parking {}".format(user, spot, parking))
-
-    if park["status"] != "ok":
-        return jsonify(
-                status = "no available"
-                ), 403
-
-    if park["occupied"] == True and park["occupiedBy"] == int(user):
-        now = datetime.datetime.now()
-        dateName = now.strftime("%Y-%m-%d-%H-%M-%S")
-        free = {"$set" : {"occupied" : True, "occupiedBy": None, "occupiedSince": None}}
-        col.update_one(query, free)
-        then = datetime.datetime.strptime(park["occupiedSince"], "%Y-%m-%d-%H-%M-%S")
+        free = {"$set" : {"occupied" : False, "occupiedBy": None, "occupiedSince": None}}
+        mydb["spot"].update_one(query, free)
+        then = datetime.datetime.strptime(spot["occupiedSince"], "%Y-%m-%d-%H-%M-%S")
         timePassed = now - then
         print(str(timePassed.total_seconds()))
         cost = 0.001 * timePassed.total_seconds()
-        mydb["uses"].insert_one({"user" : park["occupiedBy"], "start" : park["occupiedSince"],  "end" : dateName, "cost" : cost})
-        return jsonify(
-            status = "ok",
-            cost =  cost)
+        mydb["uses"].insert_one({"user" : spot["occupiedBy"], "start" : spot["occupiedSince"],  "end" : dateName, "cost" : cost})
+        updateUser(False, user)
+        updateParking(False, spot["parking"])
+        print("Spot released")
+        return jsonify(respnse = "Spot released correctly")
+    return josnify(response = "Error releasing spot")
 
-    return jsonify(
-            status = "occupied"
-            ), 403
 
-@app.route('/reserveSpot/<int:parking>')
-def reserveSpot(parking):
-   spots = mydb["spot"]
-   for x in spots.find({"parking" : parking}):
-       if x["occupied"] == False:
-           print(x)
-   return "NOT AVAILABLE"
 
 @app.route('/resetSpot/<int:spot>')
 def resetSpot(spot):
@@ -112,9 +136,17 @@ def listSpots():
 
     return json.dumps(jsonSpots, ensure_ascii = False)
 
-    return "List of spots"
 
+@app.route('/getUses/<int:user>')
+def getUses(user):
+    query = {"user" : user}
+    uses = mydb["uses"].find(query, {"_id":0})
+    jsonUses = []
 
+    for x in uses:
+        jsonUses.append(x)
+    print(jsonUses)
+    return json.dumps(jsonUses, ensure_ascii = False)
 
 
 if __name__=='__main__':
