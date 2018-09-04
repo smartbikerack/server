@@ -64,7 +64,7 @@ def reserveSpot(user, parking):
    userNumber, userStatus, userCurrent = verifyUser(user)
    if userStatus == False:
         print("User not valid")
-        return jsonify(response = "This user is not valid. Contact us for more info")
+        return {"response" : "This user is not valid. Contact us for more info"}
 
    if userCurrent == True:
         print("User already using a spot")
@@ -88,6 +88,7 @@ def releaseSpot(user):
     query = {"occupiedBy" : user}
     userNumber, userStatus, userCurrent = verifyUser(user)
     spot = mydb["spot"].find_one(query)
+    park = mydb["parking"].find_one({"number": spot["parking"]})
     print(spot)
     if spot == None:
         return jsonify(response = "User not using any spot")
@@ -100,11 +101,11 @@ def releaseSpot(user):
         timePassed = now - then
         print(str(timePassed.total_seconds()))
         cost = 0.001 * timePassed.total_seconds()
-        mydb["uses"].insert_one({"user" : spot["occupiedBy"], "start" : spot["occupiedSince"],  "end" : dateName, "cost" : cost})
+        mydb["uses"].insert_one({"user" : spot["occupiedBy"], "start" : spot["occupiedSince"],  "end" : dateName, "cost" : cost, "parking" : park["place"]})
         updateUser(False, user)
         updateParking(False, spot["parking"])
         print("Spot released")
-        return jsonify(respnse = "Spot released correctly")
+        return jsonify(response = "Spot released correctly")
     return josnify(response = "Error releasing spot")
 
 
