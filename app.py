@@ -88,11 +88,11 @@ def releaseSpot(user):
     query = {"occupiedBy" : user}
     userNumber, userStatus, userCurrent = verifyUser(user)
     spot = mydb["spot"].find_one(query)
-    park = mydb["parking"].find_one({"number": spot["parking"]})
     print(spot)
     if spot == None:
         return jsonify(response = "User not using any spot")
     if spot["occupied"] == True and spot["occupiedBy"] == userNumber["number"]:
+        park = mydb["parking"].find_one({"number": spot["parking"]})
         now = datetime.datetime.now()
         dateName = now.strftime("%Y-%m-%d-%H-%M-%S")
         free = {"$set" : {"occupied" : False, "occupiedBy": None, "occupiedSince": None}}
