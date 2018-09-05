@@ -101,7 +101,7 @@ def releaseSpot(user):
         timePassed = now - then
         print(str(timePassed.total_seconds()))
         cost = 0.001 * timePassed.total_seconds()
-        mydb["uses"].insert_one({"user" : spot["occupiedBy"], "start" : spot["occupiedSince"],  "end" : dateName, "cost" : cost, "parking" : park["place"]})
+        mydb["uses"].insert_one({"user" : spot["occupiedBy"], "start" : spot["occupiedSince"],  "end" : dateName, "cost" : cost, "parking" : park["place"], "duration" : timePassed.total_seconds()})
         updateUser(False, user)
         updateParking(False, spot["parking"])
         print("Spot released")
