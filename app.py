@@ -75,7 +75,7 @@ def reserveSpot(user, parking):
    for x in spots.find({"parking" : parking}):
        if x["occupied"] == False:
            change = {"$set" : {"occupied": True, "occupiedBy": user, "occupiedSince" : dateName}}
-           spots.update_one({"number" : x["number"]}, change)
+           spots.update_one({"number" : x["number"], "parking" : parking}, change)
            updateUser(True, user)
            updateParking(True, parking)
            return jsonify(spotReserved =  x["number"], response= "Reserved spot {}".format(x["number"]))
