@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import hashlib
+import random
 import json
 import pymongo
 from time import time, strftime
@@ -137,7 +138,7 @@ def listSpots():
                x["spotArray"].append(y)
         jsonSpots.append(x)
 
-    return json.dum88ps(jsonSpots, ensure_ascii = False)
+    return json.dumps(jsonSpots, ensure_ascii = False)
 
 
 @app.route('/getUses/<int:user>')
@@ -163,6 +164,22 @@ def logIn(email, password):
         return jsonify(response = "Wrong username or password")
     returnUser = mydb["users"].find_one(query, {"_id":0, "password": 0, "salt": 0})
     return json.dumps(returnUser, ensure_ascii = False)
+
+@app.route('/signUp/<string:email>/<string:name>/<string:password>')
+def signUp(email, name, password):
+    query = {"email" : email}
+    user = mydb["users"].find_one(query, {"_id": 0})
+    if user != None:
+        return jsonify(response = "User already exists")
+    salt = random.getrandbits(128)
+    hash_object = hashlib.sha256((password + "" + str(salt)).encode())
+    hex_dig = hash_object.hexdigest()
+    lastUser = mydb["users"].find({}, {"number" : 1, "_id" : 0}).sort([["number" , pymongo.DESCENDING]]).limit(1)
+    for x in lastUser:
+        lastId = x["number"]
+    insertUser = {"email" : email, "name" : name, "password" : hex_dig, "salt" : str(salt), "status" : "Pending", "active": False, "current": False, "uuid" : "Pending", "number": lastId + 1}
+    mydb["users"].insert_one(insertUser)
+    return jsonify(response = "User added without errors")
 
 if __name__=='__main__':
     app.run(host='0.0.0.0', port=5000)
