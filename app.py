@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+import hashlib
 import json
 import pymongo
 from time import time, strftime
@@ -28,6 +29,7 @@ def updateUser(current, userID):
 def updateParking(used, parking):
     query = {"number" : parking}
     parking = mydb["parking"].find_one(query)
+    print(parking)
     spotsUsed = parking["spotsOccupied"]
     if used:
         spotsUsed+=1
@@ -135,7 +137,7 @@ def listSpots():
                x["spotArray"].append(y)
         jsonSpots.append(x)
 
-    return json.dumps(jsonSpots, ensure_ascii = False)
+    return json.dum88ps(jsonSpots, ensure_ascii = False)
 
 
 @app.route('/getUses/<int:user>')
@@ -149,6 +151,18 @@ def getUses(user):
     print(jsonUses)
     return json.dumps(jsonUses, ensure_ascii = False)
 
+@app.route('/logIn/<string:email>/<string:password>')
+def logIn(email, password):
+    query = {"email" : email}
+    user = mydb["users"].find_one(query, {"_id":0})
+    if user == None:
+        return jsonify(response = "Wrong username or password")
+    hash_object = hashlib.sha256((password + "" + user["salt"]).encode())
+    hex_dig = hash_object.hexdigest()
+    if hex_dig  != user["password"]:
+        return jsonify(response = "Wrong username or password")
+    returnUser = mydb["users"].find_one(query, {"_id":0, "password": 0, "salt": 0})
+    return json.dumps(returnUser, ensure_ascii = False)
 
 if __name__=='__main__':
     app.run(host='0.0.0.0', port=5000)
