@@ -19,7 +19,7 @@ def verifyUser(userID):
     if user["status"] == "ok" and user["active"] == True:
         return user, True, user["current"]
     else:
-        return {"user" :  "False"}, False
+        return user, False, user["current"]
 
 def updateUser(current, userID):
     query = {"number" : userID}
@@ -179,7 +179,7 @@ def signUp(email, name, password):
         lastId = x["number"]
     insertUser = {"email" : email, "name" : name, "password" : hex_dig, "salt" : str(salt), "status" : "Pending", "active": False, "current": False, "uuid" : "Pending", "number": lastId + 1}
     mydb["users"].insert_one(insertUser)
-    return jsonify(response = "User added without errors")
+    return jsonify(answer = "User added without errors")
 
 if __name__=='__main__':
     app.run(host='0.0.0.0', port=5000)
