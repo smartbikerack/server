@@ -127,13 +127,17 @@ def listSpots():
     spots = mydb["spot"].find({},{ "_id": 0, "occupiedSince": 0, "occupiedBy":0})
     parkings = mydb["parking"].find({},{ "_id": 0})
     jsonSpots = []
+    spotsMemory = []
+    for x in spots:
+        spotsMemory.append(x)
 
     for x in parkings:
         #print(x)
         print("Listing spots for this parking::")
         x["spotArray"] = []
-        #print(x)
-        for y in spots:
+        print(x)
+        for y in spotsMemory:
+            print(y)
             if y["parking"] == x["number"]:
                x["spotArray"].append(y)
         jsonSpots.append(x)
@@ -151,6 +155,16 @@ def getUses(user):
         jsonUses.append(x)
     print(jsonUses)
     return json.dumps(jsonUses, ensure_ascii = False)
+
+@app.route('/getCurrentUse/<int:user>')
+def getCurrentUses(user):
+    query = {"occupiedBy" : user}
+    spot = mydb["spot"].find_one(query, {"_id" : 0})
+    print(spot)
+    if spot == None:
+       return jsonify(response = "No current use")
+    return json.dumps(spot, ensure_ascii = False)
+
 
 @app.route('/logIn/<string:email>/<string:password>')
 def logIn(email, password):
