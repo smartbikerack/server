@@ -13,6 +13,7 @@ mydb = myclient["smartbikerack"]
 
 
 def verifyUser(userID):
+    print(userID)
     query = {"number" : userID}
     user = mydb["users"].find_one(query)
     print(user)
@@ -65,6 +66,7 @@ def reserveSpot(user, parking):
    dateName = now.strftime("%Y-%m-%d-%H-%M-%S")
    spots = mydb["spot"]
    userNumber, userStatus, userCurrent = verifyUser(user)
+   print("wdfg")
    if userStatus == False:
         print("User not valid")
         return {"response" : "This user is not valid. Contact us for more info"}
@@ -76,7 +78,9 @@ def reserveSpot(user, parking):
 
 
    for x in spots.find({"parking" : parking}):
+       print("asdfg")
        if x["occupied"] == False:
+           print("sdfgom vbnñl,mnj")
            change = {"$set" : {"occupied": True, "occupiedBy": user, "occupiedSince" : dateName}}
            spots.update_one({"number" : x["number"], "parking" : parking}, change)
            updateUser(True, user)
